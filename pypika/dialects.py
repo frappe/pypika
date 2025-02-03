@@ -964,3 +964,9 @@ class SQLLiteQueryBuilder(QueryBuilder):
     def _replace_sql(self, **kwargs: Any) -> str:
         prefix = "INSERT OR " if self._insert_or_replace else ""
         return prefix + super()._replace_sql(**kwargs)
+
+    @builder
+    def for_update(
+        self, nowait: bool = False, skip_locked: bool = False, of: TypedTuple[str, ...] = ()
+    ) -> "QueryBuilder":
+        self._for_update = False
