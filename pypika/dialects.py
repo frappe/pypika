@@ -970,3 +970,9 @@ class SQLLiteQueryBuilder(QueryBuilder):
         self, nowait: bool = False, skip_locked: bool = False, of: TypedTuple[str, ...] = ()
     ) -> "QueryBuilder":
         self._for_update = False
+
+    def _insert_sql(self, **kwargs: Any) -> str:
+        return "INSERT {ignore}INTO {table}".format(
+            table=self._insert_table.get_sql(**kwargs),
+            ignore="OR IGNORE " if self._ignore else "",
+        )
