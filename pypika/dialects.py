@@ -128,7 +128,6 @@ class MySQLQueryBuilder(QueryBuilder):
         self._ignore_duplicates = True
 
     def get_sql(self, **kwargs: Any) -> str:
-        self._set_kwargs_defaults(kwargs)
         querystring = super(MySQLQueryBuilder, self).get_sql(**kwargs)
         if querystring:
             if self._duplicate_updates:
@@ -657,8 +656,6 @@ class PostgreSQLQueryBuilder(QueryBuilder):
         )
 
     def get_sql(self, with_alias: bool = False, subquery: bool = False, **kwargs: Any) -> str:
-        self._set_kwargs_defaults(kwargs)
-
         querystring = super(PostgreSQLQueryBuilder, self).get_sql(with_alias, subquery, **kwargs)
 
         querystring += self._on_conflict_sql(**kwargs)

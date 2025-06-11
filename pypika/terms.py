@@ -692,9 +692,8 @@ class Field(Criterion, JSON):
                 name=field_sql,
             )
 
-        field_alias = getattr(self, "alias", None)
         if with_alias:
-            return format_alias_sql(field_sql, field_alias, quote_char=quote_char, **kwargs)
+            return format_alias_sql(field_sql, getattr(self, "alias", None), quote_char=quote_char, **kwargs)
         return field_sql
 
 
