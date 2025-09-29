@@ -18,13 +18,13 @@ def version():
                 if isinstance(name, ast.Name) and name.id in ('__version__', '__version_info__', 'VERSION'):
                     v = node.value
                     if isinstance(v, ast.Constant):
-                        return str(v.value)
+                        return v.value
 
                     if isinstance(v, ast.Tuple):
                         r = []
                         for e in v.elts:
                             if isinstance(e, ast.Constant):
-                                r.append(str(e.value))
+                                r.append(e.value)
                         return '.'.join(r)
 
 
