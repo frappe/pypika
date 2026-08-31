@@ -103,7 +103,7 @@ def resolve_is_aggregate(values: List[Optional[bool]]) -> Optional[bool]:
 
 
 def format_quotes(value: Any, quote_char: Optional[str]) -> str:
-    return f"{quote_char or ""}{value}{quote_char or ""}"
+    return f'{quote_char or ""}{value}{quote_char or ""}'
 
 
 def format_alias_sql(

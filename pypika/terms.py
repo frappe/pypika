@@ -690,7 +690,7 @@ class Field(Criterion, JSON):
         if self.table and (with_namespace or self.table.alias):
             table_name = self.table.get_table_name()
             namespace = format_quotes(table_name, quote_char)
-            field_sql = f"{namespace}{field_sql}"
+            field_sql = f"{namespace}.{field_sql}"
 
         field_alias = getattr(self, "alias", None)
         if with_alias:
