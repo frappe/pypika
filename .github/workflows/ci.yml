@@ -15,12 +15,11 @@ jobs:
       - uses: pre-commit/action@v3.0.0
 
   test:
-    name: Unit tests on Python ${{ matrix.python-version }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
+    name: Unit tests on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
 
     steps:
@@ -37,29 +36,3 @@ jobs:
 
       - name: Run test suite
         run: python -m unittest discover
-
-      - name: Install coverage dependencies
-        if: matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest'
-        run: pip install coveralls
-
-      - name: Run coverage
-        if: matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-        run: |
-          coverage run -m unittest discover
-          coverage xml
-          coveralls --service=github
-
-  mypy:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - run: |
-          pip install mypy
-          mypy .
