@@ -437,7 +437,6 @@ class ValueWrapper(Term):
     def get_formatted_value(cls, value: Any, **kwargs):
         quote_char = kwargs.get("secondary_quote_char") or ""
 
-        # FIXME escape values
         if isinstance(value, Term):
             return value.get_sql(**kwargs)
         if isinstance(value, Enum):
@@ -445,7 +444,6 @@ class ValueWrapper(Term):
         if isinstance(value, date):
             return cls.get_formatted_value(value.isoformat(), **kwargs)
         if isinstance(value, str):
-            value = value.replace(quote_char, quote_char * 2)
             return format_quotes(value, quote_char)
         if isinstance(value, bool):
             return str.lower(str(value))

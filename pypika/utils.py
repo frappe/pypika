@@ -103,7 +103,16 @@ def resolve_is_aggregate(values: List[Optional[bool]]) -> Optional[bool]:
 
 
 def format_quotes(value: Any, quote_char: Optional[str]) -> str:
-    return f'{quote_char or ""}{value}{quote_char or ""}'
+    """Wrap ``value`` in ``quote_char``, doubling any occurrence of it inside the value.
+
+    Doubling is how SQL escapes the quote char within a quoted identifier or string. Without it a
+    value carrying that char closes the quotes early and the rest is parsed as SQL.
+    """
+    if not quote_char:
+        return f"{value}"
+
+    value = f"{value}".replace(quote_char, quote_char * 2)
+    return f"{quote_char}{value}{quote_char}"
 
 
 def format_alias_sql(
