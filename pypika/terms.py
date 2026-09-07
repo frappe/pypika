@@ -378,7 +378,7 @@ class NumericParameter(ListParameter):
     """Numeric, positional style, e.g. ...WHERE name=:1"""
 
     def get_sql(self, **kwargs: Any) -> str:
-        return ":{placeholder}".format(placeholder=self.placeholder)
+        return f":{self.placeholder}"
 
 
 class FormatParameter(ListParameter):
@@ -392,14 +392,14 @@ class NamedParameter(DictParameter):
     """Named style, e.g. ...WHERE name=:name"""
 
     def get_sql(self, **kwargs: Any) -> str:
-        return ":{placeholder}".format(placeholder=self.placeholder)
+        return f":{self.placeholder}"
 
 
 class PyformatParameter(DictParameter):
     """Python extended format codes, e.g. ...WHERE name=%(name)s"""
 
     def get_sql(self, **kwargs: Any) -> str:
-        return "%({placeholder})s".format(placeholder=self.placeholder)
+        return f"%({self.placeholder})s"
 
     def get_param_key(self, placeholder: Any, **kwargs):
         return placeholder[2:-2]
@@ -415,7 +415,7 @@ class Negative(Term):
         return self.term.is_aggregate
 
     def get_sql(self, **kwargs: Any) -> str:
-        return "-{term}".format(term=self.term.get_sql(**kwargs))
+        return f"-{self.term.get_sql(**kwargs)}"
 
 
 class ValueWrapper(Term):
@@ -682,10 +682,8 @@ class Field(Criterion, JSON):
         # Need to add namespace if the table has an alias
         if self.table and (with_namespace or self.table.alias):
             table_name = self.table.get_table_name()
-            field_sql = "{namespace}.{name}".format(
-                namespace=format_quotes(table_name, quote_char),
-                name=field_sql,
-            )
+            namespace = format_quotes(table_name, quote_char)
+            field_sql = f"{namespace}.{field_sql}"
 
         field_alias = getattr(self, "alias", None)
         if with_alias:
@@ -874,11 +872,7 @@ class BasicCriterion(Criterion):
         self.right = self.right.replace_table(current_table, new_table)
 
     def get_sql(self, quote_char: str = '"', with_alias: bool = False, **kwargs: Any) -> str:
-        sql = "{left}{comparator}{right}".format(
-            comparator=self.comparator.value,
-            left=self.left.get_sql(quote_char=quote_char, **kwargs),
-            right=self.right.get_sql(quote_char=quote_char, **kwargs),
-        )
+        sql = f"{self.left.get_sql(quote_char=quote_char, **kwargs)}{self.comparator.value}{self.right.get_sql(quote_char=quote_char, **kwargs)}"
         if with_alias:
             return format_alias_sql(sql, self.alias, **kwargs)
         return sql
@@ -1111,15 +1105,9 @@ class NotNullCriterion(NullCriterion):
 
 class ComplexCriterion(BasicCriterion):
     def get_sql(self, subcriterion: bool = False, **kwargs: Any) -> str:
-        sql = "{left} {comparator} {right}".format(
-            comparator=self.comparator.value,
-            left=self.left.get_sql(subcriterion=self.needs_brackets(self.left), **kwargs),
-            right=self.right.get_sql(subcriterion=self.needs_brackets(self.right), **kwargs),
-        )
-
+        sql = f"{self.left.get_sql(subcriterion=self.needs_brackets(self.left), **kwargs)} {self.comparator.value} {self.right.get_sql(subcriterion=self.needs_brackets(self.right), **kwargs)}"
         if subcriterion:
-            return "({criterion})".format(criterion=sql)
-
+            return f"({sql})"
         return sql
 
     def needs_brackets(self, term: Term) -> bool:
