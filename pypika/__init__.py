@@ -68,55 +68,58 @@ from pypika.enums import (
 # noinspection PyUnresolvedReferences
 from pypika.queries import (
     AliasedQuery,
+    Column,
+    Database,
     Query,
     Schema,
     Table,
-    Column,
-    Database,
-    make_tables as Tables,
+)
+from pypika.queries import (
     make_columns as Columns,
+)
+from pypika.queries import (
+    make_tables as Tables,
 )
 
 # noinspection PyUnresolvedReferences
 from pypika.terms import (
+    JSON,
     Array,
     Bracket,
     Case,
     Criterion,
+    CustomFunction,
     EmptyCriterion,
     Field,
+    FormatParameter,
     Index,
     Interval,
-    JSON,
+    NamedParameter,
     Not,
     NullValue,
-    SystemTimeValue,
-    Parameter,
-    QmarkParameter,
     NumericParameter,
-    NamedParameter,
-    FormatParameter,
+    Parameter,
     PyformatParameter,
+    QmarkParameter,
     Rollup,
+    SystemTimeValue,
     Tuple,
-    CustomFunction,
 )
 
 # noinspection PyUnresolvedReferences
 from pypika.utils import (
     CaseException,
+    FunctionException,
     GroupingException,
     JoinException,
     QueryException,
     RollupException,
     SetOperationException,
-    FunctionException,
 )
-
 
 __author__ = "Timothy Heys"
 __email__ = "theys@kayak.com"
-__version__ = "0.48.9"
+__version__ = "0.51.1"
 
 NULL = NullValue()
 SYSTEM_TIME = SystemTimeValue()
@@ -124,6 +127,7 @@ SYSTEM_TIME = SystemTimeValue()
 __all__ = (
     'ClickHouseQuery',
     'Dialects',
+    'JiraQuery',
     'MSSQLQuery',
     'MySQLQuery',
     'OracleQuery',
@@ -165,6 +169,7 @@ __all__ = (
     'CustomFunction',
     'CaseException',
     'GroupingException',
+    'JiraQuery',
     'JoinException',
     'QueryException',
     'RollupException',

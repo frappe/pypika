@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 from typing import Any
 
@@ -97,7 +99,7 @@ class SqlType:
     def __init__(self, name: str) -> None:
         self.name = name
 
-    def __call__(self, length: int) -> "SqlTypeLength":
+    def __call__(self, length: int) -> SqlTypeLength:
         return SqlTypeLength(self.name, length)
 
     def get_sql(self, **kwargs: Any) -> str:
@@ -120,6 +122,7 @@ class SqlTypes:
     NUMERIC = "NUMERIC"
     SIGNED = "SIGNED"
     UNSIGNED = "UNSIGNED"
+    INTEGER_AUTO_INCREMENT = "INTEGER AUTO_INCREMENT"
 
     DATE = "DATE"
     TIME = "TIME"

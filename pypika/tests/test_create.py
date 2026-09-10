@@ -1,8 +1,8 @@
 import unittest
 
-from pypika import Column, Columns, Query, Tables, Table
-from pypika.terms import ValueWrapper, Index
-from pypika.enums import ReferenceOption
+from pypika import Column, Columns, Query, Table, Tables
+from pypika.enums import ReferenceOption, SqlTypes
+from pypika.terms import Index, ValueWrapper
 
 
 class CreateTableTests(unittest.TestCase):
@@ -123,6 +123,16 @@ class CreateTableTests(unittest.TestCase):
             q = Query.create_table(self.new_table).if_not_exists().columns(self.foo, self.bar)
 
             self.assertEqual('CREATE TABLE IF NOT EXISTS "abc" ("a" INT,"b" VARCHAR(100))', str(q))
+
+        with self.subTest("with primary key & auto increment"):
+            a = Column("a", SqlTypes.INTEGER_AUTO_INCREMENT, False)
+            b = Column("b", "VARCHAR(100)", default="foo")
+            q = Query.create_table(self.new_table).columns(a, b).primary_key(a)
+
+            self.assertEqual(
+                'CREATE TABLE "abc" ("a" INTEGER AUTO_INCREMENT NOT NULL,"b" VARCHAR(100) DEFAULT \'foo\',PRIMARY KEY ("a"))',
+                str(q),
+            )
 
     def test_create_table_with_select(self):
         select = Query.from_(self.existing_table).select(self.existing_table.foo, self.existing_table.bar)
