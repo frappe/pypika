@@ -61,8 +61,8 @@ class Term(Node):
 
         return set(self.find_(Table))
 
-    def fields_(self) -> set[Field]:
-        return set(self.find_(Field))
+    def fields_(self) -> list[Field]:
+        return self.find_(Field)
 
     @staticmethod
     def wrap_constant(
@@ -626,8 +626,8 @@ class EmptyCriterion(Criterion):
     is_aggregate = None
     tables_ = set()
 
-    def fields_(self) -> set[Field]:
-        return set()
+    def fields_(self) -> list[Field]:
+        return list()
 
     def __and__(self, other: Any) -> Any:
         return other

@@ -129,7 +129,7 @@ def format_quotes(value: Any, quote_char: str | None) -> str:
     if quote_char:
         value = str(value).replace(quote_char, quote_char * 2)
 
-    return "{quote}{value}{quote}".format(value=value, quote=quote_char or "")
+    return f'{quote_char or ""}{value}{quote_char or ""}'
 
 
 def format_alias_sql(
