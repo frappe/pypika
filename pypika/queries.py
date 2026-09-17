@@ -722,7 +722,6 @@ class QueryBuilder(Selectable, Term):
         wrapper_cls: type[ValueWrapper] = ValueWrapper,
         immutable: bool = True,
         as_keyword: bool = False,
-        validate: bool = True,
     ):
         super().__init__(None)
 
@@ -774,8 +773,6 @@ class QueryBuilder(Selectable, Term):
         self._wrapper_cls = wrapper_cls
 
         self.immutable = immutable
-        # NOTE: to make it easier to disable costly but very non-exhaustive validation checks.
-        self.do_validation = validate
 
     def __copy__(self) -> QueryBuilder:
         newone = type(self).__new__(type(self))
@@ -1163,7 +1160,7 @@ class QueryBuilder(Selectable, Term):
             # Do not add select terms after a star is selected
             return
 
-        if term.table in list(self._select_star_tables):
+        if term.table in self._select_star_tables:
             # Do not add select terms for table after a table star is selected
             return
 
@@ -1202,7 +1199,6 @@ class QueryBuilder(Selectable, Term):
         Returns False if the term references a table not already part of the
         FROM clause or JOINS and True otherwise.
         """
-
         base_tables = self._from + [self._update_table]
 
         for field in term.fields_():
@@ -1383,7 +1379,7 @@ class QueryBuilder(Selectable, Term):
             querystring += self._for_update_sql(**kwargs)
 
         if subquery:
-            querystring = f"({querystring})"
+            querystring = "({query})".format(query=querystring)
 
         if with_alias:
             kwargs['alias_quote_char'] = (
@@ -1635,7 +1631,6 @@ class Joiner(Generic[QB]):
         self.item = item
         self.how = how
         self.type_label = type_label
-        self.do_validation = query.do_validation
 
     def on(self, criterion: Criterion | None, collate: str | None = None) -> QB:
         if criterion is None:
@@ -1644,7 +1639,7 @@ class Joiner(Generic[QB]):
                 "{type} JOIN but was not supplied.".format(type=self.type_label)
             )
 
-        self.query.do_join(JoinOn(self.item, self.how, criterion, collate, self.do_validation))
+        self.query.do_join(JoinOn(self.item, self.how, criterion, collate))
         return self.query
 
     def on_field(self, *fields: Any) -> QB:
@@ -1709,13 +1704,10 @@ class Join:
 
 
 class JoinOn(Join):
-    def __init__(
-        self, item: Term, how: JoinType, criteria: QueryBuilder, collate: str | None = None, do_validation: bool = True
-    ) -> None:
+    def __init__(self, item: Term, how: JoinType, criteria: QueryBuilder, collate: str | None = None) -> None:
         super().__init__(item, how)
         self.criterion = criteria
         self.collate = collate
-        self.do_validation = do_validation
 
     def get_sql(self, **kwargs: Any) -> str:
         join_sql = super().get_sql(**kwargs)
@@ -1726,21 +1718,16 @@ class JoinOn(Join):
         )
 
     def validate(self, _from: Sequence[Table], _joins: Sequence[Table]) -> None:
-        if self.do_validation:
-            # NOTE: we by-pass it for production as provides very limited benefits.
-            # __hash__ is really costly.
-            criterion_tables = set([f.table for f in self.criterion.fields_()])
-            available_tables = set(_from) | {join.item for join in _joins} | {self.item}
-            missing_tables = criterion_tables - available_tables
-            if missing_tables:
-                raise JoinException(
-                    "Invalid join criterion. One field is required from the joined item and "
-                    "another from the selected table or an existing join.  Found [{tables}]".format(
-                        tables=", ".join(map(str, missing_tables))
-                    )
+        criterion_tables = set([f.table for f in self.criterion.fields_()])
+        available_tables = set(_from) | {join.item for join in _joins} | {self.item}
+        missing_tables = criterion_tables - available_tables
+        if missing_tables:
+            raise JoinException(
+                "Invalid join criterion. One field is required from the joined item and "
+                "another from the selected table or an existing join.  Found [{tables}]".format(
+                    tables=", ".join(map(str, missing_tables))
                 )
-        else:
-            pass
+            )
 
     @builder
     def replace_table(self, current_table: Table | None, new_table: Table | None) -> None:
