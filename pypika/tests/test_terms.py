@@ -115,6 +115,17 @@ class IntervalSQLiteTests(TestCase):
             'SELECT datetime(CURRENT_TIMESTAMP, \'-30 days\') FROM "abc"', query_sub.get_sql(dialect=Dialects.SQLLITE)
         )
 
+        query_add = Query.from_(table).select(Now() + Interval(days=30))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"', query_add.get_sql(dialect=Dialects.SQLLITE)
+        )
+
+        query_add_comm = Query.from_(table).select(Interval(days=30) + Now())
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"',
+            query_add_comm.get_sql(dialect=Dialects.SQLLITE),
+        )
+
     def test_sqlite_empty_interval_math(self):
         table = Table("abc")
 
@@ -128,4 +139,13 @@ class IntervalSQLiteTests(TestCase):
         self.assertEqual(
             'SELECT datetime(CURRENT_TIMESTAMP, \'-1 months\') "my_date" FROM "abc"',
             query.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+    def test_sqlite_interval_math_with_dialect_on_interval(self):
+        table = Table("abc")
+
+        query = Query.from_(table).select(Now() - Interval(days=30, dialect=Dialects.SQLLITE))
+        self.assertEqual(
+            'SELECT datetime(NOW(), \'-30 days\') FROM "abc"',
+            query.get_sql(),
         )

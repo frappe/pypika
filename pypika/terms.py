@@ -1221,6 +1221,14 @@ class ArithmeticExpression(Term):
                     return format_alias_sql(override_sql, self.alias, **kwargs)
                 return override_sql
 
+        # Check left side ONLY for commutative addition (e.g., Interval + Now())
+        if self.operator == Arithmetic.add and hasattr(self.left, "get_date_arithmetic_sql"):
+            override_sql = self.left.get_date_arithmetic_sql(self.right, self.operator, **kwargs)
+            if override_sql:
+                if with_alias:
+                    return format_alias_sql(override_sql, self.alias, **kwargs)
+                return override_sql
+
         left_op, right_op = [getattr(side, "operator", None) for side in [self.left, self.right]]
 
         arithmetic_sql = "{left}{operator}{right}".format(
@@ -1786,35 +1794,17 @@ class Interval(Term):
 
         return f"datetime('now', {', '.join(components)})"
 
-    def get_date_arithmetic_sql(self, left_term, operator, **kwargs: Any) -> str | None:
-        """
-        Allows Interval to override how it behaves in math expressions for specific dialects.
-        Returns the formatted SQLite string, or None if standard algebra should be used.
-        """
-
-        from pypika.enums import Dialects, Arithmetic
-
-        dialect = kwargs.get("dialect")
-        if dialect != Dialects.SQLLITE:
-            return None
-
-        if operator not in (Arithmetic.add, Arithmetic.sub):
-            return None
-
-        left_sql = left_term.get_sql(**kwargs)
-
-        is_subtraction = operator == Arithmetic.sub
+    def _get_sqlite_modifiers(self, is_subtraction: bool = False) -> list:
         components = []
-
         if hasattr(self, "quarters"):
-            val = getattr(self, "quarters") * 3
-            sign = "-" if (self.is_negative != is_subtraction) else "+"
-            components.append(f"'{sign}{val} months'")
+            raw = getattr(self, "quarters") * 3
+            sign = "-" if ((raw < 0) != is_subtraction) else "+"
+            components.append(f"'{sign}{abs(raw)} months'")
 
         elif hasattr(self, "weeks"):
-            val = getattr(self, "weeks") * 7
-            sign = "-" if (self.is_negative != is_subtraction) else "+"
-            components.append(f"'{sign}{val} days'")
+            raw = getattr(self, "weeks") * 7
+            sign = "-" if ((raw < 0) != is_subtraction) else "+"
+            components.append(f"'{sign}{abs(raw)} days'")
 
         else:
             for unit, label in zip(self.units, self.labels):
@@ -1824,12 +1814,36 @@ class Interval(Term):
                     sqlite_unit = self.sqlite_units.get(label, unit)
                     components.append(f"'{sign}{val} {sqlite_unit}'")
 
-        if not components:
+        return components
+
+    def _get_sqlite_sql(self) -> str:
+        """Generate SQLite-compatible interval expression using datetime functions"""
+        modifiers = self._get_sqlite_modifiers(is_subtraction=False)
+        if not modifiers:
+            return "datetime('now')"
+
+        return f"datetime('now', {', '.join(modifiers)})"
+
+    def get_date_arithmetic_sql(self, left_term, operator, **kwargs: Any) -> str | None:
+        """
+        Allows Interval to override how it behaves in math expressions for specific dialects.
+        Returns the formatted SQLite string, or None if standard algebra should be used.
+        """
+        dialect = self.dialect or kwargs.get("dialect")
+        if dialect != Dialects.SQLLITE:
+            return None
+
+        if operator not in (Arithmetic.add, Arithmetic.sub):
+            return None
+
+        left_sql = left_term.get_sql(**kwargs)
+        is_subtraction = operator == Arithmetic.sub
+
+        modifiers = self._get_sqlite_modifiers(is_subtraction=is_subtraction)
+        if not modifiers:
             return left_sql
 
-        modifiers = ", ".join(components)
-
-        return f"datetime({left_sql}, {modifiers})"
+        return f"datetime({left_sql}, {', '.join(modifiers)})"
 
 
 class Pow(Function):
