@@ -1212,7 +1212,6 @@ class ArithmeticExpression(Term):
         return right_op in self.add_order
 
     def get_sql(self, with_alias: bool = False, **kwargs: Any) -> str:
-        from pypika.utils import format_alias_sql
 
         if hasattr(self.right, "get_date_arithmetic_sql"):
             override_sql = self.right.get_date_arithmetic_sql(self.left, self.operator, **kwargs)
@@ -1764,34 +1763,6 @@ class Interval(Term):
                 unit = "DAY"
 
         return self.templates.get(dialect, "INTERVAL '{expr} {unit}'").format(expr=expr, unit=unit)
-
-    def _get_sqlite_sql(self) -> str:
-        """Generate SQLite-compatible interval expression using datetime functions"""
-        if hasattr(self, "quarters"):
-            # Convert quarters to months for SQLite
-            value = getattr(self, "quarters") * 3
-            sign = "-" if self.is_negative else "+"
-            return f"datetime('now', '{sign}{value} months')"
-
-        if hasattr(self, "weeks"):
-            # Convert weeks to days for SQLite
-            value = getattr(self, "weeks") * 7
-            sign = "-" if self.is_negative else "+"
-            return f"datetime('now', '{sign}{value} days')"
-
-        # Construct datetime expression with each non-zero component
-        components = []
-        for unit, label in zip(self.units, self.labels):
-            if hasattr(self, unit) and getattr(self, unit):
-                value = getattr(self, unit)
-                sign = "-" if self.is_negative else "+"
-                sqlite_unit = self.sqlite_units.get(label, unit)
-                components.append(f"'{sign}{value} {sqlite_unit}'")
-
-        if not components:
-            return "datetime('now')"
-
-        return f"datetime('now', {', '.join(components)})"
 
     def _get_sqlite_modifiers(self, is_subtraction: bool = False) -> list:
         components = []
