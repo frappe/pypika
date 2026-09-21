@@ -1781,7 +1781,13 @@ class Interval(Term):
                 if hasattr(self, unit) and getattr(self, unit):
                     val = getattr(self, unit)
                     sign = "-" if (self.is_negative != is_subtraction) else "+"
-                    sqlite_unit = self.sqlite_units.get(label, unit)
+                    if unit == "microseconds":
+                        # SQLite doesn't support 'microseconds', so convert to fractional seconds
+                        val = val / 1000000.0
+                        sqlite_unit = "seconds"
+                    else:
+                        sqlite_unit = self.sqlite_units.get(label, unit)
+
                     components.append(f"'{sign}{val} {sqlite_unit}'")
 
         return components
@@ -1799,7 +1805,7 @@ class Interval(Term):
         Allows Interval to override how it behaves in math expressions for specific dialects.
         Returns the formatted SQLite string, or None if standard algebra should be used.
         """
-        dialect = self.dialect or kwargs.get("dialect")
+        dialect = kwargs.get("dialect")
         if dialect != Dialects.SQLLITE:
             return None
 

@@ -141,11 +141,32 @@ class IntervalSQLiteTests(TestCase):
             query.get_sql(dialect=Dialects.SQLLITE),
         )
 
-    def test_sqlite_interval_math_with_dialect_on_interval(self):
+    def test_sqlite_interval_math_negative_and_complex_units(self):
         table = Table("abc")
 
-        query = Query.from_(table).select(Now() - Interval(days=30, dialect=Dialects.SQLLITE))
+        query_neg = Query.from_(table).select(Now() - Interval(days=-30))
         self.assertEqual(
-            'SELECT datetime(NOW(), \'-30 days\') FROM "abc"',
-            query.get_sql(),
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"',
+            query_neg.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Weeks
+        query_weeks = Query.from_(table).select(Now() - Interval(weeks=2))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-14 days\') FROM "abc"',
+            query_weeks.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Quarters
+        query_quarters = Query.from_(table).select(Now() - Interval(quarters=1))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-3 months\') FROM "abc"',
+            query_quarters.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Microseconds (converted to fractional seconds)
+        query_micro = Query.from_(table).select(Now() - Interval(microseconds=500000))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.5 seconds\') FROM "abc"',
+            query_micro.get_sql(dialect=Dialects.SQLLITE),
         )
