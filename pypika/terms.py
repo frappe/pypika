@@ -1221,7 +1221,6 @@ class ArithmeticExpression(Term):
                     return format_alias_sql(override_sql, self.alias, **kwargs)
                 return override_sql
 
-        # Check left side ONLY for commutative addition (e.g., Interval + Now())
         if self.operator == Arithmetic.add and hasattr(self.left, "get_date_arithmetic_sql"):
             override_sql = self.left.get_date_arithmetic_sql(self.right, self.operator, **kwargs)
             if override_sql:
