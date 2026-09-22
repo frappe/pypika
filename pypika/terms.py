@@ -1213,18 +1213,20 @@ class ArithmeticExpression(Term):
 
     def get_sql(self, with_alias: bool = False, **kwargs: Any) -> str:
 
-        if hasattr(self.right, "get_date_arithmetic_sql"):
-            override_sql = self.right.get_date_arithmetic_sql(self.left, self.operator, **kwargs)
-            if override_sql:
-                if with_alias:
-                    return format_alias_sql(override_sql, self.alias, **kwargs)
-                return override_sql
+        def check_override(term, other):
+            if hasattr(term, "get_date_arithmetic_sql"):
+                override = term.get_date_arithmetic_sql(other, self.operator, **kwargs)
+                if override:
+                    return format_alias_sql(override, self.alias, **kwargs) if with_alias else override
+            return None
 
-        if self.operator == Arithmetic.add and hasattr(self.left, "get_date_arithmetic_sql"):
-            override_sql = self.left.get_date_arithmetic_sql(self.right, self.operator, **kwargs)
+        override_sql = check_override(self.right, self.left)
+        if override_sql:
+            return override_sql
+
+        if self.operator == Arithmetic.add:
+            override_sql = check_override(self.left, self.right)
             if override_sql:
-                if with_alias:
-                    return format_alias_sql(override_sql, self.alias, **kwargs)
                 return override_sql
 
         left_op, right_op = [getattr(side, "operator", None) for side in [self.left, self.right]]
@@ -1654,8 +1656,6 @@ class Interval(Term):
         # Oracle and MySQL requires just single quotes around the expr
         Dialects.ORACLE: "INTERVAL '{expr}' {unit}",
         Dialects.MYSQL: "INTERVAL '{expr}' {unit}",
-        # SQLite doesn't have a direct INTERVAL type, use datetime functions instead
-        Dialects.SQLLITE: "{expr} {unit}",
     }
 
     units = ["years", "months", "days", "hours", "minutes", "seconds", "microseconds"]
@@ -1669,7 +1669,6 @@ class Interval(Term):
         "HOUR": "hours",
         "MINUTE": "minutes",
         "SECOND": "seconds",
-        "MICROSECOND": "microseconds",
     }
 
     trim_pattern = re.compile(r"(^0+\.)|(\.0+$)|(^[0\-.: ]+[\-: ])|([\-:. ][0\-.: ]+$)")
@@ -1692,6 +1691,8 @@ class Interval(Term):
         self.smallest = None
         self.is_negative = False
 
+        # init returns early here, meaning self.is_negative remains false
+        # even for negative weeks/quarters. Formatting paths handle the raw sign directly to compensate
         if quarters:
             self.quarters = quarters
             return
@@ -1764,7 +1765,7 @@ class Interval(Term):
 
         return self.templates.get(dialect, "INTERVAL '{expr} {unit}'").format(expr=expr, unit=unit)
 
-    def _get_sqlite_modifiers(self, is_subtraction: bool = False) -> list:
+    def _get_sqlite_modifiers(self, is_subtraction: bool = False) -> list[str]:
         components = []
         if hasattr(self, "quarters"):
             raw = getattr(self, "quarters") * 3
@@ -1781,14 +1782,13 @@ class Interval(Term):
                 if hasattr(self, unit) and getattr(self, unit):
                     val = getattr(self, unit)
                     sign = "-" if (self.is_negative != is_subtraction) else "+"
+
                     if unit == "microseconds":
-                        # SQLite doesn't support 'microseconds', so convert to fractional seconds
-                        val = val / 1000000.0
-                        sqlite_unit = "seconds"
+                        formatted_val = f"{val / 1000000.0:f}"
+                        components.append(f"'{sign}{formatted_val} seconds'")
                     else:
                         sqlite_unit = self.sqlite_units.get(label, unit)
-
-                    components.append(f"'{sign}{val} {sqlite_unit}'")
+                        components.append(f"'{sign}{val} {sqlite_unit}'")
 
         return components
 

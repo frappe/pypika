@@ -164,9 +164,16 @@ class IntervalSQLiteTests(TestCase):
             query_quarters.get_sql(dialect=Dialects.SQLLITE),
         )
 
-        # Microseconds (converted to fractional seconds)
-        query_micro = Query.from_(table).select(Now() - Interval(microseconds=500000))
+        # Microseconds (large value)
+        query_micro_large = Query.from_(table).select(Now() - Interval(microseconds=500000))
         self.assertEqual(
-            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.5 seconds\') FROM "abc"',
-            query_micro.get_sql(dialect=Dialects.SQLLITE),
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.500000 seconds\') FROM "abc"',
+            query_micro_large.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Microseconds (small value to prove lack of scientific notation)
+        query_micro_small = Query.from_(table).select(Now() - Interval(microseconds=1))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.000001 seconds\') FROM "abc"',
+            query_micro_small.get_sql(dialect=Dialects.SQLLITE),
         )
