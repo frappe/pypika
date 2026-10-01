@@ -1,7 +1,9 @@
 from unittest import TestCase
 
 from pypika import Field, Query, Table
-from pypika.terms import AtTimezone
+from pypika.terms import AtTimezone, Interval
+from pypika.functions import Now
+from pypika.enums import Dialects
 
 
 class FieldAliasTests(TestCase):
@@ -101,4 +103,77 @@ class IdentifierEscapingTests(TestCase):
             'FROM "customers""" WHERE """id"=\'abc\' AND "email"""=\'abc@abc.com\' '
             'ORDER BY "customer_email""","""id"',
             query.get_sql(),
+        )
+
+
+class IntervalSQLiteTests(TestCase):
+    def test_sqlite_interval_math(self):
+        table = Table("abc")
+
+        query_sub = Query.from_(table).select(Now() - Interval(days=30))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-30 days\') FROM "abc"', query_sub.get_sql(dialect=Dialects.SQLLITE)
+        )
+
+        query_add = Query.from_(table).select(Now() + Interval(days=30))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"', query_add.get_sql(dialect=Dialects.SQLLITE)
+        )
+
+        query_add_comm = Query.from_(table).select(Interval(days=30) + Now())
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"',
+            query_add_comm.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+    def test_sqlite_empty_interval_math(self):
+        table = Table("abc")
+
+        query = Query.from_(table).select(Now() - Interval())
+        self.assertEqual('SELECT CURRENT_TIMESTAMP FROM "abc"', query.get_sql(dialect=Dialects.SQLLITE))
+
+    def test_sqlite_interval_math_with_alias(self):
+        table = Table("abc")
+
+        query = Query.from_(table).select((Now() - Interval(months=1)).as_("my_date"))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-1 months\') "my_date" FROM "abc"',
+            query.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+    def test_sqlite_interval_math_negative_and_complex_units(self):
+        table = Table("abc")
+
+        query_neg = Query.from_(table).select(Now() - Interval(days=-30))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'+30 days\') FROM "abc"',
+            query_neg.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Weeks
+        query_weeks = Query.from_(table).select(Now() - Interval(weeks=2))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-14 days\') FROM "abc"',
+            query_weeks.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Quarters
+        query_quarters = Query.from_(table).select(Now() - Interval(quarters=1))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-3 months\') FROM "abc"',
+            query_quarters.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Microseconds (large value)
+        query_micro_large = Query.from_(table).select(Now() - Interval(microseconds=500000))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.500000 seconds\') FROM "abc"',
+            query_micro_large.get_sql(dialect=Dialects.SQLLITE),
+        )
+
+        # Microseconds (small value to prove lack of scientific notation)
+        query_micro_small = Query.from_(table).select(Now() - Interval(microseconds=1))
+        self.assertEqual(
+            'SELECT datetime(CURRENT_TIMESTAMP, \'-0.000001 seconds\') FROM "abc"',
+            query_micro_small.get_sql(dialect=Dialects.SQLLITE),
         )
