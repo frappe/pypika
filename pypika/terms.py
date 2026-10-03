@@ -1214,7 +1214,7 @@ class ArithmeticExpression(Term):
     def get_sql(self, with_alias: bool = False, **kwargs: Any) -> str:
 
         def check_override(term, other):
-            if hasattr(term, "get_date_arithmetic_sql"):
+            if isinstance(term, Interval):
                 override = term.get_date_arithmetic_sql(other, self.operator, **kwargs)
                 if override:
                     return format_alias_sql(override, self.alias, **kwargs) if with_alias else override

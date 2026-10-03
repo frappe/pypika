@@ -1382,6 +1382,60 @@ class SubqueryTests(unittest.TestCase):
         )
 
 
+class ArithmeticOperandTests(unittest.TestCase):
+    """Selectable.__getattr__ resolves any name to a Field, so a Table or subquery operand
+    must never be mistaken for an Interval by ArithmeticExpression's override hook."""
+
+    maxDiff = None
+
+    table_abc, table_efg = Tables("abc", "efg")
+
+    def test_arithmetic_with_subquery_operand(self):
+        sub_query = (
+            Query.from_(self.table_efg)
+            .select(fn.Sum(self.table_efg.qty))
+            .where(self.table_efg.abc_id == self.table_abc.id)
+        )
+        sub_query_sql = 'SELECT SUM("efg"."qty") FROM "efg" WHERE "efg"."abc_id"="abc"."id"'
+
+        self.assertEqual(
+            f'SELECT "qty"-(({sub_query_sql})) FROM "abc"',
+            str(Query.from_(self.table_abc).select(self.table_abc.qty - sub_query)),
+        )
+        self.assertEqual(
+            f'SELECT "qty"+({sub_query_sql}) FROM "abc"',
+            str(Query.from_(self.table_abc).select(self.table_abc.qty + sub_query)),
+        )
+        self.assertEqual(
+            f'SELECT "qty"/(({sub_query_sql})) FROM "abc"',
+            str(Query.from_(self.table_abc).select(self.table_abc.qty / sub_query)),
+        )
+
+    def test_arithmetic_with_subquery_operand_per_dialect(self):
+        sub_query = Query.from_(self.table_efg).select(fn.Sum(self.table_efg.qty))
+
+        self.assertEqual(
+            'SELECT `qty`-((SELECT SUM(`qty`) FROM `efg`)) FROM `abc`',
+            MySQLQuery.from_(self.table_abc).select(self.table_abc.qty - sub_query).get_sql(),
+        )
+        self.assertEqual(
+            'SELECT "qty"-((SELECT SUM("qty") FROM "efg")) FROM "abc"',
+            SQLLiteQuery.from_(self.table_abc).select(self.table_abc.qty - sub_query).get_sql(),
+        )
+
+    def test_arithmetic_with_table_operand(self):
+        self.assertEqual(
+            'SELECT "foo"-("efg") FROM "abc"',
+            str(Query.from_(self.table_abc).select(F("foo") - self.table_efg)),
+        )
+
+    def test_arithmetic_with_table_operand_on_left(self):
+        self.assertEqual(
+            'SELECT "efg"+"qty" FROM "abc"',
+            str(Query.from_(self.table_abc).select(self.table_efg + self.table_abc.qty)),
+        )
+
+
 class QuoteTests(unittest.TestCase):
     def test_extraneous_quotes(self):
         t1 = Table("table1", alias="t1")
